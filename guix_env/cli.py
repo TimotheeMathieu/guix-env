@@ -143,42 +143,6 @@ def rm(ctx, name):
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
-@click.argument('file',required = True, type=str)
-@click.pass_context
-def export_env(ctx, name):
-    """
-    Export environment description to a file.
-    """
-    
-    with tempfile.TemporaryDirectory() as directory:
-        os.mkdir(directory)
-        channel_file = os.path.join(main_dir, name, "channels.scm")
-        manifest_file = os.path.join(main_dir, name, "manifest.scm")
-        requirements_file = os.path.join(main_dir, name, "requirements.txt")
-        run_file = os.path.join(main_dir, name, "bin", "run.sh")
-        bin_folder = os.path.join(main_dir, name, "bin")
-
-        subprocess.run(['cp', '-r', bin_folder, manifest_file, channel_file, requirements_file, directory])
-        subprocess.run(["tar", "-C", directory, "-cvf", name+".tar", directory])
-        shutil.rmtree(directory)
-
-        
-@guix_env.command()
-@click.argument('file',required = True, type=str)
-@click.pass_context
-def import_env(ctx, file):
-    """
-    Export environment description to a file.
-    """
-    name = file.split(".")[0]
-    file_path = os.path.abspath(file)
-    os.mkdir(os.path.join(main_dir, name))
-    run_file = os.path.join(main_dir, name, "bin", "run.sh")
-    os.system("cd "+os.path.join(main_dir, name)+" && tar -xvf" + file_path)
-    os.system(run_file+" pip3 install -r  "+os.path.join(main_dir, name, "requirements.txt"))
-
-@guix_env.command()
-@click.argument('name',required = True, type=str)
 @click.argument('pkg',required = True, type=str)
 @click.pass_context
 def add(ctx, name, pkg):
@@ -204,7 +168,6 @@ def list(ctx):
     list all the environments.
     """
     os.system('ls '+main_dir)
-
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)

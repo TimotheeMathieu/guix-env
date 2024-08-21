@@ -18,6 +18,10 @@ The first run may be a bit slow because of guix downloading a bunch of packages 
 
 Then, you are good to go and do anything you wish in your environment. You are in a python virtual environment and you can install new python packages with pip. To add new guix package, use `guix-env add my_env_name my_package_name` from outside the environment.
 
+One of the qualities of guix-env is its *reproducibility*, you can use the three files `manifest.scm`, `channels.scm` and `requirements.txt` that are in `~/.guix-env/my_env_name` to reproduce the environment using the following command:
+```
+guix-env create my_env_name --channel-file channels.scm --manifest-file manifest.scm --requirements-file requirements.txt
+```
 
 ## TODO
 
