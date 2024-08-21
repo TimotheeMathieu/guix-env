@@ -10,7 +10,7 @@ setup(
     name='guix-env',
     version=__version__,
     license="MIT",
-    packages=find_packages(),
+    packages=["guix_env"],
     include_package_data=True,
     install_requires=[
         'Click', "jinja2"
