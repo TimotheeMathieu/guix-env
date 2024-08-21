@@ -1,0 +1,45 @@
+# -*- mode: shell-script -*-
+
+autoload -U compinit promptinit
+compinit
+promptinit
+
+zstyle ':completion:*' menu select
+setopt completealiases
+
+bindkey "[[1;5A" up-line-or-local-history
+bindkey "[[1;5B" down-line-or-local-history
+
+up-line-or-local-history() {
+    zle set-local-history 1
+    zle up-line-or-history
+    zle set-local-history 0
+}
+zle -N up-line-or-local-history
+down-line-or-local-history() {
+    zle set-local-history 1
+    zle down-line-or-history
+    zle set-local-history 0
+}
+zle -N down-line-or-local-history
+
+bindkey "^E" end-of-line
+bindkey "^A" beginning-of-line
+
+autoload -U colors && colors
+
+alias ls='ls --color'
+
+REQFILE={{ reqfile }}
+
+pip()
+{
+    command pip "$@"
+    if [ $1 = "install" ]; then
+        echo "writing requirements.txt file in " $REQFILE
+        command pip freeze > $REQFILE
+    fi
+}
+
+PROMPT="%{$fg[green]%}%n@{{ name }}-guix-env  %T %~
+%{$reset_color%}%# >"
