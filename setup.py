@@ -6,7 +6,7 @@ ver_file = os.path.join("guix_env", "_version.py")
 with open(ver_file) as f:
     exec(f.read())
 
-packages = find_packages()
+packages = ['guix-env']
 
 setup(
     name='guix-env',
