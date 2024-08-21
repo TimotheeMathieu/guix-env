@@ -49,7 +49,7 @@ def guix_env(ctx):
     pass
 
 @guix_env.command()
-@click.argument('name',required = True, type=str, help="Name of the environment.")
+@click.argument('name',required = True, type=str)
 @click.option('--channel-file',required = False, type=str, help="Path to a channel file to be used in the guix install")
 @click.option('--requirements-file',required = False, type=str, help="Path to a requirements.txt file to be used in the python install")
 @click.option('--manifest-file',required = False, type=str, help="Path to a manifest file to be used in the guix install")
@@ -230,7 +230,7 @@ def info(ctx, name):
     os.system(run_file+" pip3 freeze")
 
 @guix_env.command()
-@click.argument('name',required = True, type=str, help="Name of the environment to spawn.")
+@click.argument('name',required = True, type=str)
 @click.option("--tmux", is_flag=True, required=False, help="Launch in a tmux console, if it does not exists create it.")
 @click.option("--cwd", is_flag=True, required=False, help="Used only in conjunction with tmux, change current directory in the tmux environment. Warning: it will kill any ongoing process in the targetted tmux session.")
 @click.pass_context
