@@ -1,1 +1,2 @@
-guix-env/template_scripts/*
+graft guix_env/template_scripts
+
