@@ -195,7 +195,7 @@ def info(ctx, name):
 @guix_env.command()
 @click.argument('name',required = True, type=str)
 @click.option("--tmux", is_flag=True, required=False, help="Launch in a tmux console, if it does not exists create it.")
-@click.option("--cwd", is_flag=True, required=False, help="Used only in conjunction with tmux, change current directory in the tmux environment. Warning: it will kill any ongoing process in the targetted tmux session.")
+@click.option("--cwd", is_flag=True, required=False, help="Used only in conjunction with tmux, change current directory in the tmux environment.")
 @click.pass_context
 def shell(ctx, name, tmux, cwd):
     """
@@ -213,7 +213,7 @@ def shell(ctx, name, tmux, cwd):
 
         if cwd:
             wd = os.getcwd()
-            os.system("tmux send-keys -t guix_env_"+name+" C-c \" cd "+wd+ " && clear\" ENTER")
+            os.system("tmux send-keys -t guix_env_"+name+"\" cd "+wd+ " && clear\" ENTER")
             print("done cwd")
         os.system("tmux attach -t guix_env_"+name)
     else:

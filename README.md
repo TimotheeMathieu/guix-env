@@ -27,7 +27,7 @@ Remark that it is not perfect reproductibility because the requirements.txt file
 ## TODO
 
 - Better documentation
-- better requirements.txt
+- better requirements.txt -- switch to poetry ?
 - Tests
 - Handle GPU ?
 - Feature: rollback, similar to what can be done with guix-home.
