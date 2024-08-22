@@ -1,5 +1,10 @@
 # Guix & venv environments for reproducible python development
 
+This package give a cli tool to construct and enter environments constructed through guix (for the system-level packages) and pip/venv (for python packages). 
+
+Remark that due to the use of pip, the resulting environment is not perfectly reproducible as it would be better to use guix all the way but this way is much simpler when using dev python packages that are not yet packaged in guix.
+
+
 ## Usage
 Guix must be installed on the system, see [the guix manual](https://guix.gnu.org/manual/en/html_node/Binary-Installation.html) to do this.
 
