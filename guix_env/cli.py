@@ -27,6 +27,7 @@ default_guix_packages = [
     "which",
     "tcl",
     "gtk",
+    "grep",
     "xcb-util", # xcb/dbus is for matplotlib to be able to plt.show
     "xcb-util-wm",
     "xcb-util-image",

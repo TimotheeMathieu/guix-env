@@ -23,6 +23,10 @@ down-line-or-local-history() {
 }
 zle -N down-line-or-local-history
 
+bindkey "\e[1~" beginning-of-line # Home
+bindkey "\e[4~" end-of-line # End
+bindkey "\e[7~" beginning-of-line # Home
+bindkey "\e[8~" end-of-line # End
 bindkey "^E" end-of-line
 bindkey "^A" beginning-of-line
 
