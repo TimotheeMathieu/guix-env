@@ -1,5 +1,6 @@
 #!/bin/sh
 
+export POETRY_CACHE_DIR=${HOME}/.guix_env/poetry_cache
 export POETRY_VIRTUALENVS_IN_PROJECT=true
 export GUIX_ENV_NAME={{ name }}
 export SHELL=$(realpath $(which zsh))

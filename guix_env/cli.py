@@ -38,6 +38,7 @@ default_guix_packages = [
     "dbus",
     "xcb-util-cursor",
     "ncurses",
+    "nano",
     "zsh"
 ]
 
@@ -134,11 +135,12 @@ def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lo
     os.system(run_file + f" poetry install --directory={os.path.join(main_dir, name)}")
     
     if requirements_file is not None:
+        requirements_file = os.path.abspath(requirements_file)
         os.system(run_file +f" cat {requirements_file} | xargs poetry add --directory={os.path.join(main_dir, name)}")
         
     # make completions
     os.system(run_file + "  poetry completions zsh > "+os.path.join(main_dir, name,"_poetry"))
-    
+    os.system(run_file + f"  poetry config virtualenvs.prompt ' ' --local --directory={os.path.join(main_dir, name)}")
         
 
 @guix_env.command()

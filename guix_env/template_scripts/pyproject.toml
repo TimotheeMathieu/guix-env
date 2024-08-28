@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "{{ name }}"
+name = "guix-env-{{ name }}"
 package-mode = false
 description = "Dependency file for guix-env environment {{ name }}"
 
