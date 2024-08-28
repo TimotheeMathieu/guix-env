@@ -29,6 +29,7 @@ default_guix_packages = [
     "which",
     "tcl",
     "gtk",
+    "grep",
     "xcb-util", # xcb/dbus is for matplotlib to be able to plt.show
     "xcb-util-wm",
     "xcb-util-image",
@@ -250,7 +251,7 @@ def shell(ctx, name, tmux, cwd):
 
         if cwd:
             wd = os.getcwd()
-            os.system("tmux send-keys -t guix_env_"+name+"\" cd "+wd+ " && clear\" ENTER")
+            os.system("tmux send-keys -t guix_env_"+name+" \" cd "+wd+ " && clear\" ENTER")
             print("done cwd")
         os.system("tmux attach -t guix_env_"+name)
     else:
