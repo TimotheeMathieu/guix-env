@@ -1,0 +1,9 @@
+#!/bin/sh
+
+export POETRY_VIRTUALENVS_IN_PROJECT=true
+export GUIX_ENV_NAME={{ name }}
+export SHELL=$(realpath $(which zsh))
+export LD_LIBRARY_PATH=/lib
+export ZDOTDIR=${HOME}/.guix_env/{{ name }}/bin
+
+exec "$@"

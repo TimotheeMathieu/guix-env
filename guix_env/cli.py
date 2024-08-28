@@ -123,6 +123,10 @@ def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lo
     if poetry_lock_file is not None:
         os.system(f"cp {poetry_lock_file} {os.path.join(main_dir, name)}")
 
+    with open(os.path.join(main_dir, name,  "pre_env"), "w") as myfile:
+        pre_env = environment.get_template("pre_env").render(name=name)
+        myfile.write(pre_env)
+    os.system("chmod +x "+os.path.join(main_dir, name,  "pre_env"))
             
     run_file = os.path.join(main_dir, name, "bin", "run.sh")
     
