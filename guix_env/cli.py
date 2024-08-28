@@ -16,11 +16,13 @@ environment = Environment(loader=FileSystemLoader(
 default_guix_packages = [
     "python",
     "python-toolchain",
+    "poetry-next", # this comes from perso channel while waiting for guix to have a newer version of poetry
     "bash",
     "glibc-locales",
     "nss-certs",
     "coreutils",
     "diffutils",
+    "curl",
     "git",
     "make",
     "zlib",
@@ -38,8 +40,6 @@ default_guix_packages = [
     "zsh"
 ]
 
-default_python = ["numpy", "matplotlib", "PyQt5", "scipy"]
-
 @click.group()
 @click.pass_context
 def guix_env(ctx):
@@ -52,14 +52,17 @@ def guix_env(ctx):
 @click.argument('name',required = True, type=str)
 @click.option('--channel-file',required = False, type=str, help="Path to a channel file to be used in the guix install")
 @click.option('--requirements-file',required = False, type=str, help="Path to a requirements.txt file to be used in the python install")
-@click.option('--manifest-file',required = False, type=str, help="Path to a manifest file to be used in the guix install")
+@click.option('--pyproject-file',required = False, type=str, help="Path to a pyproject.toml file to be used in the python install (override requirement file if both are given).")
+@click.option('--poetry-lock-file',required = False, type=str, help="Path to a poetry.lock file to be used in the python install")
+@click.option('--manifest-file',required = False, type=str, help="Path to a manifest file to be used in the guix install. Will replace the default manifest.")
 @click.option('--guix-args',required = False, type=str, default="-CFNW", help="arguments to be passed to guix")
 @click.pass_context
-def create(ctx, name, channel_file, requirements_file, manifest_file, guix_args):
+def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lock_file, manifest_file, guix_args):
     """
     Create an environment with name `name`. A channel file can be specified, otherwise a channel file will be
     automatically created.
     """
+
     assert not os.path.isdir(os.path.join(main_dir, name)), "Environment already exist"
     os.system('mkdir -p '+os.path.join(main_dir, name, "bin"))
 
@@ -67,14 +70,14 @@ def create(ctx, name, channel_file, requirements_file, manifest_file, guix_args)
 
     # TBC
     
-    if channel_file is None:
-        channels = subprocess.run(["guix", "describe", "-f", "channels"], capture_output=True).stdout.decode()
-    else:
-        channels = subprocess.run(["cat", channel_file], capture_output=True).stdout.decode()
+    channels = _make_channel_file(channel_file)
 
     template = environment.get_template("activate.sh")
     script = template.render(name = name, guix_args = guix_args)
 
+
+
+        
     with open(os.path.join(main_dir, name, "bin", ".zshrc"), "w") as myfile:
         myfile.write(zshrc)
     
@@ -83,7 +86,6 @@ def create(ctx, name, channel_file, requirements_file, manifest_file, guix_args)
         os.system('chmod +x '+os.path.join(main_dir, name, "bin", "activate.sh"))
         
     with open(os.path.join(main_dir, name, "bin", "run.sh"), "w") as myfile:
-
         template_run = environment.get_template("run_script.sh")
         run_script = template_run.render(name = name, guix_args = guix_args)
         myfile.write(run_script)
@@ -103,21 +105,37 @@ def create(ctx, name, channel_file, requirements_file, manifest_file, guix_args)
                 )
     else:
         os.system("cp "+manifest_file+" "+os.path.join(main_dir, name, "manifest.scm"))
-    
-    print("Creation of virtual environment")
-    os.system("guix time-machine --channels=${HOME}/.guix_env/"+name+"/channels.scm -- shell  python  -- python3 -m venv ~/.guix_env/guix_env_venv/"+name+"_venv")
+
+    guix_python_cmd = f"guix time-machine --channels=$HOME/.guix_env/{name}/channels.scm -- shell python -- python3 --version | cut -d ' ' -f 2"
+
+    python_version = subprocess.check_output(guix_python_cmd, shell=True).decode().strip()
+        
+    if pyproject_file is None:
+        author = subprocess.run(["whoami"], capture_output=True).stdout.decode()
+        pyproject = environment.get_template("pyproject.toml").render(name = name, python_version = python_version)
+    else:
+        with open(pyproject_file, "r") as myfile:
+            pyproject = myfile.read()
+
+    with open(os.path.join(main_dir, name,  "pyproject.toml"), "w") as myfile:
+        myfile.write(pyproject)
+
+    if poetry_lock_file is not None:
+        os.system(f"cp {poetry_lock_file} {os.path.join(main_dir, name)}")
+
+            
     run_file = os.path.join(main_dir, name, "bin", "run.sh")
-    if requirements_file is None:
-        print("Installing default python libs")
-        with open(os.path.join(main_dir, name, "requirements.txt"), "w") as myfile:
-            myfile.write("\n".join(default_python))
-
-        requirements_file = os.path.join(main_dir, name, "requirements.txt")
     
-    os.system(run_file+" python -m pip install -r "+requirements_file)
-    os.system(run_file+" python -m pip freeze > "+os.path.join(main_dir, name, "requirements.txt"))
-
+    os.system(run_file + f" poetry install --directory={os.path.join(main_dir, name)}")
     
+    if requirements_file is not None:
+        os.system(run_file +f" cat {requirements_file} | xargs poetry add --directory={os.path.join(main_dir, name)}")
+        
+    # make completions
+    os.system(run_file + "  poetry completions zsh > "+os.path.join(main_dir, name,"_poetry"))
+    
+        
+
 @guix_env.command()
 @click.argument('name',required = True, type=str)
 @click.pass_context
@@ -125,9 +143,10 @@ def update(ctx, name):
     """
     Update the channel file (and as a consequence, it will update the packages managed by guix at next shell/run).
     """
-    channels = subprocess.run(["guix", "describe", "-f", "channels"], capture_output=True).stdout.decode()
+    channels = _make_channel_file(os.path.join(main_dir, name, "channels.scm"))
     with open(os.path.join(main_dir, name, "channels.scm"), "w") as myfile:
         myfile.write(channels)
+
 
 
 @guix_env.command()
@@ -137,17 +156,20 @@ def rm(ctx, name):
     """
     Remove a guix-env environment.
     """
-    shutil.rmtree(os.path.join(main_dir, name))
-    shutil.rmtree(os.path.join(main_dir, "guix_env_venv", name+"_venv"))
+    if os.path.isdir(os.path.join(main_dir, name)):
+        shutil.rmtree(os.path.join(main_dir, name))
+    if os.path.isdir(os.path.join(main_dir, "guix_env_venv", name+"_venv")):
+        shutil.rmtree(os.path.join(main_dir, "guix_env_venv", name+"_venv"))
 
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
 @click.argument('pkg',required = True, type=str)
 @click.pass_context
-def add(ctx, name, pkg):
+def add_guix(ctx, name, pkg):
     """
-    Add the package `pkg` to the environment named `name`.
+    Add the guix package `pkg` to the environment named `name`.
+    Warning: if you add a package from inside an environment, the package will not be available until you reconstruct the environment.
     """
     with open(os.path.join(main_dir, name, "manifest.scm"), "r") as myfile:
         packages = myfile.read().split("(")[2].split(")")[0]
@@ -160,6 +182,17 @@ def add(ctx, name, pkg):
         myfile.write(
                 "(specifications->manifest '(\n\"" + '"\n "'.join(packages) + '"\n))'
             )
+
+@guix_env.command()
+@click.argument('name',required = True, type=str)
+@click.argument('pkg',required = True, type=str)
+@click.pass_context
+def add_python(ctx, name, pkg):
+    """
+    Add the guix package `pkg` to the environment named `name`.
+    """
+    run_file = os.path.join(main_dir, name, "bin", "run.sh")
+    os.system(run_file + f" poetry add {pkg} --directory={os.path.join(main_dir, name)}")
 
 @guix_env.command()
 @click.pass_context
@@ -243,3 +276,13 @@ def _is_in_guix(pkg):
         if pkg == name.strip():
             res = True
     return res
+
+def _make_channel_file(channel_file=None):
+
+    if channel_file is None:
+        system_channels = subprocess.run(["guix", "describe", "-f", "channels"], capture_output=True).stdout.decode()
+    else:
+        system_channels = subprocess.run(["cat", channel_file], capture_output=True).stdout.decode()
+    
+    channels = environment.get_template("channels.scm").render(system_channels = system_channels)
+    return channels

@@ -1,0 +1,11 @@
+[tool.poetry]
+name = "{{ name }}"
+package-mode = false
+description = "Dependency file for guix-env environment {{ name }}"
+
+[tool.poetry.dependencies]
+python = "{{ python_version }}"
+numpy = "*"
+scipy = "*"
+matplotlib = "*"
+PyQt6 = "*"

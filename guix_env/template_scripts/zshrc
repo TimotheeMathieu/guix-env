@@ -1,6 +1,8 @@
 # -*- mode: shell-script -*-
 
-autoload -U compinit promptinit
+# completions
+fpath+=~/.guix_env/{{ name }}
+autoload -Uz compinit promptinit
 compinit
 promptinit
 
@@ -41,5 +43,11 @@ pip()
     fi
 }
 
+export POETRY_VIRTUALENVS_IN_PROJECT=true
+export GUIX_ENV_NAME={{ name }}
+export SHELL=$(realpath $(which zsh))
+
 PROMPT="%{$fg[green]%}%n@{{ name }}-guix-env  %T %~
 %{$reset_color%}%# >"
+
+
