@@ -47,3 +47,4 @@ pip()
 
 PROMPT="%{$fg[green]%}%n@{{ name }}-guix-env  %T %~
 %{$reset_color%}%# >"
+HISTFILE="$HOME/.guix_env/{{ name }}/.zhistory"
