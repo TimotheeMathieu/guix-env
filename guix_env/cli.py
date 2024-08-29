@@ -39,6 +39,7 @@ default_guix_packages = [
     "xcb-util-cursor",
     "ncurses",
     "nano",
+    "tmux",
     "zsh"
 ]
 
@@ -74,24 +75,15 @@ def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lo
     
     channels = _make_channel_file(channel_file)
 
-    template = environment.get_template("activate.sh")
-    script = template.render(name = name, guix_args = guix_args)
-
-
+    env_script = environment.get_template("use_env.sh").render(name=name, guix_args = guix_args)
 
         
     with open(os.path.join(main_dir, name, "bin", ".zshrc"), "w") as myfile:
         myfile.write(zshrc)
-    
-    with open(os.path.join(main_dir, name, "bin", "activate.sh"), "w") as myfile:
-        myfile.write(script)
-        os.system('chmod +x '+os.path.join(main_dir, name, "bin", "activate.sh"))
+    with open(os.path.join(main_dir, name, "bin", "use_env.sh"), "w") as myfile:
+        myfile.write(env_script)
+        os.system('chmod +x '+os.path.join(main_dir, name, "bin", "use_env.sh"))
         
-    with open(os.path.join(main_dir, name, "bin", "run.sh"), "w") as myfile:
-        template_run = environment.get_template("run_script.sh")
-        run_script = template_run.render(name = name, guix_args = guix_args)
-        myfile.write(run_script)
-        os.system('chmod +x '+os.path.join(main_dir, name, "bin", "run.sh"))
 
     if channel_file is None:
         with open(os.path.join(main_dir, name, "channels.scm"), "w") as myfile:
@@ -130,17 +122,16 @@ def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lo
         myfile.write(pre_env)
     os.system("chmod +x "+os.path.join(main_dir, name,  "pre_env"))
             
-    run_file = os.path.join(main_dir, name, "bin", "run.sh")
-    
-    os.system(run_file + f" poetry install --directory={os.path.join(main_dir, name)}")
+    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
+    os.system(f"{env_file} poetry install --no-root --directory={os.path.join(main_dir, name)}")
     
     if requirements_file is not None:
         requirements_file = os.path.abspath(requirements_file)
-        os.system(run_file +f" cat {requirements_file} | xargs poetry add --directory={os.path.join(main_dir, name)}")
+        os.system(f" {env_file} cat {requirements_file} | xargs poetry add --directory={os.path.join(main_dir, name)}")
         
     # make completions
-    os.system(run_file + "  poetry completions zsh > "+os.path.join(main_dir, name,"_poetry"))
-    os.system(run_file + f"  poetry config virtualenvs.prompt ' ' --local --directory={os.path.join(main_dir, name)}")
+    os.system(f"{env_file}  poetry completions zsh > "+os.path.join(main_dir, name,"_poetry"))
+    os.system(f"{env_file}  poetry config virtualenvs.prompt ' ' --local --directory={os.path.join(main_dir, name)}")
         
 
 @guix_env.command()
@@ -153,6 +144,7 @@ def update(ctx, name):
     channels = _make_channel_file(os.path.join(main_dir, name, "channels.scm"))
     with open(os.path.join(main_dir, name, "channels.scm"), "w") as myfile:
         myfile.write(channels)
+    # TODO: add poetry update and a capacity to roll-back
 
 
 
@@ -196,10 +188,10 @@ def add_guix(ctx, name, pkg):
 @click.pass_context
 def add_python(ctx, name, pkg):
     """
-    Add the guix package `pkg` to the environment named `name`.
+    Add the python package `pkg` to the environment named `name`.
     """
-    run_file = os.path.join(main_dir, name, "bin", "run.sh")
-    os.system(run_file + f" poetry add {pkg} --directory={os.path.join(main_dir, name)}")
+    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
+    os.system(f"{env_file} poetry add {pkg} --directory={os.path.join(main_dir, name)}")
 
 @guix_env.command()
 @click.pass_context
@@ -217,8 +209,8 @@ def info(ctx, name):
     Get informations on environment with name `name`.
     """
     click.echo("Environment located in "+os.path.join(main_dir, name))
-    run_file = os.path.join(main_dir, name, "bin", "run.sh")
-    os.system(run_file+" guix describe")
+    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
+    os.system(env_file+" guix describe")
 
     with open(os.path.join(main_dir, name, "manifest.scm"), "r") as myfile:
         packages = myfile.read().split("(")[2].split(")")[0]
@@ -230,7 +222,7 @@ def info(ctx, name):
     click.echo("\n".join(packages))
     click.echo("-"*10)
     click.echo("Installed python packages")
-    os.system(run_file+" pip3 freeze")
+    os.system(f"{env_file} poetry run pip3 freeze --directory={os.path.join(main_dir, name)}")
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -241,8 +233,7 @@ def shell(ctx, name, tmux, cwd):
     """
     Open a shell in the environment with name `name`.
     """
-    
-    activation_file = os.path.join(main_dir, name, "bin", "activate.sh")
+    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
 
     if tmux:
         child = subprocess.run(["tmux","has-session", "-t",  "guix_env_"+name],capture_output=True,text=True)
@@ -257,7 +248,7 @@ def shell(ctx, name, tmux, cwd):
             print("done cwd")
         os.system("tmux attach -t guix_env_"+name)
     else:
-        os.system(activation_file)
+        os.system(f"{env_file} zsh ")
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -270,8 +261,8 @@ def run(ctx, name, cmd):
     Example of usage is
     guix-env run my_env "ls $HOME/"
     """
-    run_file = os.path.join(main_dir, name, "bin", "run.sh")
-    os.system(run_file+" "+cmd)
+    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
+    os.system(f"{env_file} poetry run --directory={os.path.join(main_dir, name)} {cmd}" )
         
   
 def _is_in_guix(pkg):
