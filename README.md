@@ -23,13 +23,14 @@ The first run may be a bit slow because of guix downloading a bunch of packages 
 
 Then, you are good to go and do anything you wish in your environment. You are in a python virtual environment and you can install new python packages with pip. To add new guix package, use `guix-env add-guix my_env_name my_package_name` from outside the environment. 
 
-TODO: explain poetry in guix-env
 
 
 ## TODO
+TODO: explain poetry in guix-env
 
-- Better documentation -- include explanations of how it works: poetry, what do we share, how to tinker with it, what changes are made...
+- Better documentation -- include explanations of how it works: poetry, what do we share (what we do not share, e.g. .local), how to tinker with it, what changes are made...
 - Make tests
-- Handle GPU ?
+- Have an alias that install guix_env in a guix shell environment so that we can install & use guix-env in a reproducible maneer.
 - Feature: rollback, similar to what can be done with guix-home.
-- Feature: use tmux inside the env and share tmp to make a real daemon. https://stackoverflow.com/questions/16398850/create-new-tmux-session-from-inside-a-tmux-session
+- Handle GPU ?
+- Feature: use tmux inside the env and share tmp to make a sort of daemon. https://stackoverflow.com/questions/16398850/create-new-tmux-session-from-inside-a-tmux-session

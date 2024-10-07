@@ -6,6 +6,7 @@ import tempfile
 import shutil
 from jinja2 import Environment, FileSystemLoader
 
+# TODO: add test that the environment exists before doing anything.
 
 main_dir=os.path.join(os.getenv("HOME"), ".guix_env")
 file_path = os.path.realpath(__file__)
@@ -65,26 +66,24 @@ def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lo
     Create an environment with name `name`. A channel file can be specified, otherwise a channel file will be
     automatically created.
     """
-
     assert not os.path.isdir(os.path.join(main_dir, name)), "Environment already exist"
     os.system('mkdir -p '+os.path.join(main_dir, name, "bin"))
+    os.system('mkdir -p '+os.path.join(main_dir, name, ".local"))
 
     zshrc = environment.get_template("zshrc").render(name = name, reqfile = os.path.join(main_dir, name, "requirements.txt"))
 
     # TBC
     
     channels = _make_channel_file(channel_file)
-
-    env_script = environment.get_template("use_env.sh").render(name=name, guix_args = guix_args)
-
+    home = os.getenv("HOME")
+    run_script = environment.get_template("run_script.sh").render(name=name, guix_args = guix_args, HOME=home)
         
     with open(os.path.join(main_dir, name, "bin", ".zshrc"), "w") as myfile:
         myfile.write(zshrc)
-    with open(os.path.join(main_dir, name, "bin", "use_env.sh"), "w") as myfile:
-        myfile.write(env_script)
-        os.system('chmod +x '+os.path.join(main_dir, name, "bin", "use_env.sh"))
+    with open(os.path.join(main_dir, name, "bin", "run_script.sh"), "w") as myfile:
+        myfile.write(run_script)
+        os.system('chmod +x '+os.path.join(main_dir, name, "bin", "run_script.sh"))
         
-
     if channel_file is None:
         with open(os.path.join(main_dir, name, "channels.scm"), "w") as myfile:
             myfile.write(channels)
@@ -117,22 +116,36 @@ def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lo
     if poetry_lock_file is not None:
         os.system(f"cp {poetry_lock_file} {os.path.join(main_dir, name)}")
 
-    with open(os.path.join(main_dir, name,  "pre_env"), "w") as myfile:
-        pre_env = environment.get_template("pre_env").render(name=name)
-        myfile.write(pre_env)
-    os.system("chmod +x "+os.path.join(main_dir, name,  "pre_env"))
-            
-    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
-    os.system(f"{env_file} poetry install --no-root --directory={os.path.join(main_dir, name)}")
+    with open(os.path.join(main_dir, name, "bin", "launch_in_guix.sh"), "w") as myfile:
+        launcher = environment.get_template("launch_in_guix.sh").render(name=name, guix_args = guix_args,)
+        myfile.write(launcher)
+
+    os.system("chmod +x "+os.path.join(main_dir, name, "bin", "launch_in_guix.sh"))
+
+    # TODO: use one template file for the environment and add the rest with ninja
+    with open(os.path.join(main_dir, name, "bin",  "launch_shell.sh"), "w") as myfile:
+        launcher = environment.get_template("launch_shell.sh").render(name=name)
+        myfile.write(launcher)
+    os.system("chmod +x "+os.path.join(main_dir, name, "bin",  "launch_shell.sh"))
+
+    if requirements_file is None:
+        reqfile = ""
+    else:
+        os.system("cp "+os.path.realpath(requirements_file)+ " /tmp/requirements_for_guix_env.txt")
+        reqfile = "/tmp/requirements_for_guix_env.txt"
+    create_env_file = environment.get_template("create_env.sh").render(name=name,
+                                                                       directory = os.path.join(main_dir, name),
+                                                                       requirements = reqfile)
+    with open(os.path.join("/tmp",  "create_guix_env.sh"), "w") as myfile:
+        myfile.write(create_env_file)
+    os.system("chmod +x "+os.path.join("/tmp",  "create_guix_env.sh"))
+
+    run_script = environment.get_template("run_script.sh").render(name=name)
+    with open(os.path.join(main_dir, name, "bin",  "run_script.sh"), "w") as myfile:
+        myfile.write(create_env_file)
+    os.system("chmod +x "+os.path.join(main_dir, name, "bin", "run_script.sh"))
     
-    if requirements_file is not None:
-        requirements_file = os.path.abspath(requirements_file)
-        os.system(f" {env_file} cat {requirements_file} | xargs poetry add --directory={os.path.join(main_dir, name)}")
-        
-    # make completions
-    os.system(f"{env_file}  poetry completions zsh > "+os.path.join(main_dir, name,"_poetry"))
-    os.system(f"{env_file}  poetry config virtualenvs.prompt ' ' --local --directory={os.path.join(main_dir, name)}")
-        
+    os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh")+ " " + os.path.join("/tmp",  "create_guix_env.sh"))
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -157,8 +170,6 @@ def rm(ctx, name):
     """
     if os.path.isdir(os.path.join(main_dir, name)):
         shutil.rmtree(os.path.join(main_dir, name))
-    if os.path.isdir(os.path.join(main_dir, "guix_env_venv", name+"_venv")):
-        shutil.rmtree(os.path.join(main_dir, "guix_env_venv", name+"_venv"))
 
 
 @guix_env.command()
@@ -233,7 +244,7 @@ def shell(ctx, name, tmux, cwd):
     """
     Open a shell in the environment with name `name`.
     """
-    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
+    # env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
 
     if tmux:
         child = subprocess.run(["tmux","has-session", "-t",  "guix_env_"+name],capture_output=True,text=True)
@@ -248,7 +259,7 @@ def shell(ctx, name, tmux, cwd):
             print("done cwd")
         os.system("tmux attach -t guix_env_"+name)
     else:
-        os.system(f"{env_file} zsh ")
+        os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh") + " " + os.path.join(main_dir, name, "bin", "launch_shell.sh"))
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -261,9 +272,9 @@ def run(ctx, name, cmd):
     Example of usage is
     guix-env run my_env "ls $HOME/"
     """
-    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
-    os.system(f"{env_file} poetry run --directory={os.path.join(main_dir, name)} {cmd}" )
-        
+
+    os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh")+ " " + os.path.join(main_dir, name, "bin", "run_script.sh") + " "  + cmd)
+
   
 def _is_in_guix(pkg):
     output = subprocess.run(["guix", "search", pkg], capture_output=True).stdout.decode()
