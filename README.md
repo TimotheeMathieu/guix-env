@@ -29,8 +29,10 @@ Then, you are good to go and do anything you wish in your environment. You are i
 TODO: explain poetry in guix-env
 
 - Better documentation -- include explanations of how it works: poetry, what do we share (what we do not share, e.g. .local), how to tinker with it, what changes are made...
+- Have internal poetry commands
+- Comment more
 - Make tests
 - Have an alias that install guix_env in a guix shell environment so that we can install & use guix-env in a reproducible maneer.
-- Feature: rollback, similar to what can be done with guix-home.
+- Feature: rollback, at first this could be through git repo that auto-commit.
 - Handle GPU ?
 - Feature: use tmux inside the env and share tmp to make a sort of daemon. https://stackoverflow.com/questions/16398850/create-new-tmux-session-from-inside-a-tmux-session

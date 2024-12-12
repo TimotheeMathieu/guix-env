@@ -38,6 +38,12 @@ autoload -U colors && colors
 
 alias ls='ls --color'
 
+PROMPT="%{$fg[green]%}%n@{{ name }}-guix-env  %T %~
+%{$reset_color%}%# >"
+HISTFILE="$HOME/.guix_env/{{ name }}/.zhistory"
+
+{% if with_python  %}
+
 REQFILE={{ reqfile }}
 
 pip()
@@ -49,8 +55,12 @@ pip()
     fi
 }
 
-PROMPT="%{$fg[green]%}%n@{{ name }}-guix-env  %T %~
-%{$reset_color%}%# >"
-HISTFILE="$HOME/.guix_env/{{ name }}/.zhistory"
 . $HOME/.guix_env/{{ name }}/.venv/bin/activate
+
+{% else %}
+
+{% endif %}
+
+
+
 

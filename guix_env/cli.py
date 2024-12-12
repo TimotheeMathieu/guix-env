@@ -14,15 +14,26 @@ file_path = os.path.realpath(__file__)
 environment = Environment(loader=FileSystemLoader(
     os.path.join(os.path.dirname(file_path),"template_scripts/")))
 
-default_guix_packages = [
+
+guix_python_packages = [
     "python",
     "python-toolchain",
     "poetry-next", # this comes from perso channel while waiting for guix to have a newer version of poetry
+    "xcb-util", # xcb is for matplotlib to be able to plt.show
+    "xcb-util-wm",
+    "xcb-util-image",
+    "xcb-util-keysyms",
+    "xcb-util-renderutil",
+    "xcb-util-cursor",
+    ]
+
+default_guix_packages = [
     "bash",
     "glibc-locales",
     "nss-certs",
     "coreutils",
     "diffutils",
+    "findutils",
     "curl",
     "git",
     "make",
@@ -31,13 +42,7 @@ default_guix_packages = [
     "tcl",
     "gtk",
     "grep",
-    "xcb-util", # xcb/dbus is for matplotlib to be able to plt.show
-    "xcb-util-wm",
-    "xcb-util-image",
-    "xcb-util-keysyms",
-    "xcb-util-renderutil",
     "dbus",
-    "xcb-util-cursor",
     "ncurses",
     "nano",
     "tmux",
@@ -56,27 +61,27 @@ def guix_env(ctx):
 @click.argument('name',required = True, type=str)
 @click.option('--channel-file',required = False, type=str, help="Path to a channel file to be used in the guix install")
 @click.option('--requirements-file',required = False, type=str, help="Path to a requirements.txt file to be used in the python install")
+@click.option('--without-python', is_flag=True, help="Do an environment without python")
 @click.option('--pyproject-file',required = False, type=str, help="Path to a pyproject.toml file to be used in the python install (override requirement file if both are given).")
 @click.option('--poetry-lock-file',required = False, type=str, help="Path to a poetry.lock file to be used in the python install")
 @click.option('--manifest-file',required = False, type=str, help="Path to a manifest file to be used in the guix install. Will replace the default manifest.")
 @click.option('--guix-args',required = False, type=str, default="-CFNW", help="arguments to be passed to guix")
 @click.pass_context
-def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lock_file, manifest_file, guix_args):
+def create(ctx, name, channel_file, without_python, requirements_file, pyproject_file, poetry_lock_file, manifest_file, guix_args):
     """
     Create an environment with name `name`. A channel file can be specified, otherwise a channel file will be
     automatically created.
     """
+    with_python = not without_python
     assert not os.path.isdir(os.path.join(main_dir, name)), "Environment already exist"
     os.system('mkdir -p '+os.path.join(main_dir, name, "bin"))
     os.system('mkdir -p '+os.path.join(main_dir, name, ".local"))
 
     zshrc = environment.get_template("zshrc").render(name = name, reqfile = os.path.join(main_dir, name, "requirements.txt"))
 
-    # TBC
-    
     channels = _make_channel_file(channel_file)
     home = os.getenv("HOME")
-    run_script = environment.get_template("run_script.sh").render(name=name, guix_args = guix_args, HOME=home)
+    run_script = environment.get_template("run_script.sh").render(name=name, guix_args = guix_args, HOME=home, with_python=with_python)
         
     with open(os.path.join(main_dir, name, "bin", ".zshrc"), "w") as myfile:
         myfile.write(zshrc)
@@ -93,28 +98,13 @@ def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lo
     if manifest_file is None:
         with open(os.path.join(main_dir, name, "manifest.scm"), "w") as myfile:
             packages = default_guix_packages
+            if with_python:
+                packages = packages + guix_python_packages
             myfile.write(
                     "(specifications->manifest '(\n\"" + '"\n "'.join(packages) + '"\n))'
                 )
     else:
         os.system("cp "+manifest_file+" "+os.path.join(main_dir, name, "manifest.scm"))
-
-    guix_python_cmd = f"guix time-machine --channels=$HOME/.guix_env/{name}/channels.scm -- shell python -- python3 --version | cut -d ' ' -f 2"
-
-    python_version = subprocess.check_output(guix_python_cmd, shell=True).decode().strip()
-        
-    if pyproject_file is None:
-        author = subprocess.run(["whoami"], capture_output=True).stdout.decode()
-        pyproject = environment.get_template("pyproject.toml").render(name = name, python_version = python_version)
-    else:
-        with open(pyproject_file, "r") as myfile:
-            pyproject = myfile.read()
-
-    with open(os.path.join(main_dir, name,  "pyproject.toml"), "w") as myfile:
-        myfile.write(pyproject)
-
-    if poetry_lock_file is not None:
-        os.system(f"cp {poetry_lock_file} {os.path.join(main_dir, name)}")
 
     with open(os.path.join(main_dir, name, "bin", "launch_in_guix.sh"), "w") as myfile:
         launcher = environment.get_template("launch_in_guix.sh").render(name=name, guix_args = guix_args,)
@@ -124,28 +114,16 @@ def create(ctx, name, channel_file, requirements_file, pyproject_file, poetry_lo
 
     # TODO: use one template file for the environment and add the rest with ninja
     with open(os.path.join(main_dir, name, "bin",  "launch_shell.sh"), "w") as myfile:
-        launcher = environment.get_template("launch_shell.sh").render(name=name)
+        launcher = environment.get_template("launch_shell.sh").render(name=name, with_python=with_python)
         myfile.write(launcher)
     os.system("chmod +x "+os.path.join(main_dir, name, "bin",  "launch_shell.sh"))
 
-    if requirements_file is None:
-        reqfile = ""
-    else:
-        os.system("cp "+os.path.realpath(requirements_file)+ " /tmp/requirements_for_guix_env.txt")
-        reqfile = "/tmp/requirements_for_guix_env.txt"
-    create_env_file = environment.get_template("create_env.sh").render(name=name,
-                                                                       directory = os.path.join(main_dir, name),
-                                                                       requirements = reqfile)
-    with open(os.path.join("/tmp",  "create_guix_env.sh"), "w") as myfile:
-        myfile.write(create_env_file)
-    os.system("chmod +x "+os.path.join("/tmp",  "create_guix_env.sh"))
-
-    run_script = environment.get_template("run_script.sh").render(name=name)
-    with open(os.path.join(main_dir, name, "bin",  "run_script.sh"), "w") as myfile:
-        myfile.write(create_env_file)
-    os.system("chmod +x "+os.path.join(main_dir, name, "bin", "run_script.sh"))
+    if with_python:
+        ### construct a poetry environment optionally with the specified requirements
+        _make_python_env(main_dir, name, pyproject_file, poetry_lock_file, requirements_file)
+        
+    print(f"Guix-env environment {name} has beenn created, its files can be found in {os.path.join(main_dir, name)}")
     
-    os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh")+ " " + os.path.join("/tmp",  "create_guix_env.sh"))
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -159,8 +137,6 @@ def update(ctx, name):
         myfile.write(channels)
     # TODO: add poetry update and a capacity to roll-back
 
-
-
 @guix_env.command()
 @click.argument('name',required = True, type=str)
 @click.pass_context
@@ -169,6 +145,7 @@ def rm(ctx, name):
     Remove a guix-env environment.
     """
     if os.path.isdir(os.path.join(main_dir, name)):
+        print("Removing ", os.path.join(main_dir, name))
         shutil.rmtree(os.path.join(main_dir, name))
 
 
@@ -295,3 +272,37 @@ def _make_channel_file(channel_file=None):
     
     channels = environment.get_template("channels.scm").render(system_channels = system_channels)
     return channels
+
+
+def _make_python_env(main_dir, name, pyproject_file, poetry_lock_file, requirements_file):
+    
+        guix_python_cmd = f"guix time-machine --channels=$HOME/.guix_env/{name}/channels.scm -- shell python -- python3 --version | cut -d ' ' -f 2"
+        python_version = subprocess.check_output(guix_python_cmd, shell=True).decode().strip()
+
+        if pyproject_file is None:
+            author = subprocess.run(["whoami"], capture_output=True).stdout.decode()
+            pyproject = environment.get_template("pyproject.toml").render(name = name, python_version = python_version)
+        else:
+            with open(pyproject_file, "r") as myfile:
+                pyproject = myfile.read()
+
+        with open(os.path.join(main_dir, name,  "pyproject.toml"), "w") as myfile:
+            myfile.write(pyproject)
+
+        if poetry_lock_file is not None:
+            os.system(f"cp {poetry_lock_file} {os.path.join(main_dir, name)}")
+
+        if requirements_file is None:
+            reqfile = ""
+        else:
+            os.system("cp "+os.path.realpath(requirements_file)+ " /tmp/requirements_for_guix_env.txt")
+            reqfile = "/tmp/requirements_for_guix_env.txt"
+
+
+        create_env_file = environment.get_template("create_env.sh").render(name=name,
+                                                                           directory = os.path.join(main_dir, name),
+                                                                           requirements = reqfile)
+        with open(os.path.join("/tmp",  "create_guix_env.sh"), "w") as myfile:
+            myfile.write(create_env_file)
+        os.system("chmod +x "+os.path.join("/tmp",  "create_guix_env.sh"))
+        os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh")+ " " + os.path.join("/tmp",  "create_guix_env.sh"))
