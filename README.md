@@ -28,6 +28,7 @@ Remark that I made a few opinionated design choices:
 - Every environment has its own .local and .zshrc. They can be accessed in $HOME/.guix_env/env_name
 - I do not share the home directory, by default the only directory shared are the current directory and its children (default from guix shell).
 - I use the Filesystem Hierarchy Standard (FHS) emulator of guix shell to populate /bin and /lib apropriately for some python compatibility.
+- I use a poetry cache specific to guix-env environments. It is shared among the guix envs but not with the host system.
 
 ## TODO
 
