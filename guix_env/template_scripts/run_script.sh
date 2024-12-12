@@ -11,7 +11,9 @@ export TERM=ansi
 {% if with_python  %}
 export POETRY_CACHE_DIR=${HOME}/.guix_env/poetry_cache
 export POETRY_VIRTUALENVS_IN_PROJECT=true
-poetry run --directory=${HOME}/.guix_env/{{ name }} $@
+. $HOME/.guix_env/{{ name }}/.venv/bin/activate
+
+$@
     
 {% else %}
 $@
