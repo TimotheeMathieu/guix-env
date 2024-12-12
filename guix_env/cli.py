@@ -82,7 +82,7 @@ def create(ctx, name, channel_file, without_python, requirements_file, pyproject
     home = os.getenv("HOME")
     run_script = environment.get_template("run_script.sh").render(name=name, guix_args = guix_args, HOME=home, with_python=with_python)
         
-    with open(os.path.join(main_dir, name, "bin", ".zshrc"), "w") as myfile:
+    with open(os.path.join(main_dir, name, ".zshrc"), "w") as myfile:
         myfile.write(zshrc)
     with open(os.path.join(main_dir, name, "bin", "run_script.sh"), "w") as myfile:
         myfile.write(run_script)

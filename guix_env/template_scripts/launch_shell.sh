@@ -13,7 +13,7 @@ export REQUIREMENTS_FILE={{ requirements }}
 export GUIX_ENV_NAME={{ name }}
 export SHELL=$(realpath $(which zsh))
 export LD_LIBRARY_PATH=/lib
-export ZDOTDIR=${HOME}/.guix_env/{{ name }}/bin
+export ZDOTDIR=${HOME}/.guix_env/{{ name }}
 export TERM=ansi
 
 zsh
