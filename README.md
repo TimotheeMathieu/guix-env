@@ -21,15 +21,13 @@ guix-env shell my_env_name
 
 The first run may be a bit slow because of guix downloading a bunch of packages but the second run should be faster as guix cache the packages it uses in `/gnu/store` (remark: don't forget to use `guix gc` to clear the store periodically).
 
-Then, you are good to go and do anything you wish in your environment. You are in a python virtual environment and you can install new python packages with pip. To add new guix package, use `guix-env add-guix my_env_name my_package_name` from outside the environment. 
-
+Then, you are good to go and do anything you wish in your environment. You are in a python virtual environment that is managed with poetry for reproducibility purpose, to install new python package from inside the environment, use `gep add package_name`, `gep` stands for guix-env-poetry and is just an alias of poetry that install at the right place. To add new guix package, use `guix-env add-guix my_env_name my_package_name` from outside the environment. 
 
 
 ## TODO
 TODO: explain poetry in guix-env
 
 - Better documentation -- include explanations of how it works: poetry, what do we share (what we do not share, e.g. .local), how to tinker with it, what changes are made...
-- Have internal poetry commands
 - Comment more
 - Make tests
 - Have an alias that install guix_env in a guix shell environment so that we can install & use guix-env in a reproducible maneer.

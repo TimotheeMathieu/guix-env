@@ -14,7 +14,6 @@ file_path = os.path.realpath(__file__)
 environment = Environment(loader=FileSystemLoader(
     os.path.join(os.path.dirname(file_path),"template_scripts/")))
 
-
 guix_python_packages = [
     "python",
     "python-toolchain",
@@ -77,7 +76,7 @@ def create(ctx, name, channel_file, without_python, requirements_file, pyproject
     os.system('mkdir -p '+os.path.join(main_dir, name, "bin"))
     os.system('mkdir -p '+os.path.join(main_dir, name, ".local"))
 
-    zshrc = environment.get_template("zshrc").render(name = name, reqfile = os.path.join(main_dir, name, "requirements.txt"))
+    zshrc = environment.get_template("zshrc").render(name = name, reqfile = os.path.join(main_dir, name, "requirements.txt"), with_python=with_python)
 
     channels = _make_channel_file(channel_file)
     home = os.getenv("HOME")
@@ -221,6 +220,7 @@ def shell(ctx, name, tmux, cwd):
     """
     Open a shell in the environment with name `name`.
     """
+    assert os.path.isdir(os.path.join(main_dir, name)), "Environment does not exist"
     # env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
 
     if tmux:
@@ -264,7 +264,6 @@ def _is_in_guix(pkg):
     return res
 
 def _make_channel_file(channel_file=None):
-
     if channel_file is None:
         system_channels = subprocess.run(["guix", "describe", "-f", "channels"], capture_output=True).stdout.decode()
     else:
@@ -275,7 +274,6 @@ def _make_channel_file(channel_file=None):
 
 
 def _make_python_env(main_dir, name, pyproject_file, poetry_lock_file, requirements_file):
-    
         guix_python_cmd = f"guix time-machine --channels=$HOME/.guix_env/{name}/channels.scm -- shell python -- python3 --version | cut -d ' ' -f 2"
         python_version = subprocess.check_output(guix_python_cmd, shell=True).decode().strip()
 
