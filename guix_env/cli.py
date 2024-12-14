@@ -6,6 +6,7 @@ import tempfile
 import shutil
 from jinja2 import Environment, FileSystemLoader
 
+
 # TODO: add test that the environment exists before doing anything.
 
 main_dir=os.path.join(os.getenv("HOME"), ".guix_env")
@@ -94,7 +95,8 @@ def create(ctx, name, channel_file, without_python, requirements_file, pyproject
             myfile.write(channels)
     else:
         os.system("cp "+channel_file+" "+os.path.join(main_dir, name, "channels.scm"))
-        
+        os.system
+
     if manifest_file is None:
         with open(os.path.join(main_dir, name, "manifest.scm"), "w") as myfile:
             packages = default_guix_packages
@@ -229,7 +231,7 @@ def shell(ctx, name, tmux, cwd):
     assert os.path.isdir(os.path.join(main_dir, name)), "Environment does not exist"
 
     print(f"Welcome to your guix-env environment: {name}")
-    print("To install python package, use 'gep add package_name'. gep is ann alias for poetry that install things at the right place.")
+    print("To install python package, use 'gep add package_name'. gep is an alias for poetry that install things at the right place.")
     
     os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh") + " " + os.path.join(main_dir, name, "bin", "launch_shell.sh"))
 
