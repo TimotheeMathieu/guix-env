@@ -21,7 +21,6 @@ The first run may be a bit slow because of guix downloading a bunch of packages 
 Then, you are good to go and do anything you wish in your environment. You are in a python virtual environment that is managed with poetry for reproducibility purpose, to install new python package from inside the environment, use `gep add package_name`, `gep` stands for guix-env-poetry and is just an alias of poetry that install at the right place. To add new guix package, use `guix-env add-guix my_env_name my_package_name` from outside the environment. 
 
 
-
 Remark that I made a few opinionated design choices:
 - I included some guix and python packages that are convenient for basic shell commands and basic graphical display.
 - I use zsh shell in the guix-env environments.
@@ -29,6 +28,7 @@ Remark that I made a few opinionated design choices:
 - I do not share the home directory, by default the only directory shared are the current directory and its children (default from guix shell).
 - I use the Filesystem Hierarchy Standard (FHS) emulator of guix shell to populate /bin and /lib apropriately for some python compatibility.
 - I use a poetry cache specific to guix-env environments. It is shared among the guix envs but not with the host system.
+- I added a channel file with the guix channel in which I made the last working test so if there is something wronggoing on, try to use this channel file, it should work then.
 
 ## TODO
 
