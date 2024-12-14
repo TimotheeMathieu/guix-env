@@ -75,12 +75,12 @@ def create(ctx, name, channel_file, without_python, requirements_file, pyproject
     assert not os.path.isdir(os.path.join(main_dir, name)), "Environment already exist"
     os.system('mkdir -p '+os.path.join(main_dir, name, "bin"))
     os.system('mkdir -p '+os.path.join(main_dir, name, ".local"))
+    home = os.getenv("HOME")
 
     zshrc = environment.get_template("zshrc").render(name = name, reqfile = os.path.join(main_dir, name, "requirements.txt"), with_python=with_python)
+    run_script = environment.get_template("run_script.sh").render(name=name, guix_args = guix_args, HOME=home, with_python=with_python)
 
     channels = _make_channel_file(channel_file)
-    home = os.getenv("HOME")
-    run_script = environment.get_template("run_script.sh").render(name=name, guix_args = guix_args, HOME=home, with_python=with_python)
         
     with open(os.path.join(main_dir, name, ".zshrc"), "w") as myfile:
         myfile.write(zshrc)
@@ -88,12 +88,13 @@ def create(ctx, name, channel_file, without_python, requirements_file, pyproject
         myfile.write(run_script)
         os.system('chmod +x '+os.path.join(main_dir, name, "bin", "run_script.sh"))
         
+    # Guix manifest and channel files
     if channel_file is None:
         with open(os.path.join(main_dir, name, "channels.scm"), "w") as myfile:
             myfile.write(channels)
     else:
         os.system("cp "+channel_file+" "+os.path.join(main_dir, name, "channels.scm"))
-
+        
     if manifest_file is None:
         with open(os.path.join(main_dir, name, "manifest.scm"), "w") as myfile:
             packages = default_guix_packages
@@ -105,13 +106,13 @@ def create(ctx, name, channel_file, without_python, requirements_file, pyproject
     else:
         os.system("cp "+manifest_file+" "+os.path.join(main_dir, name, "manifest.scm"))
 
+    # 
     with open(os.path.join(main_dir, name, "bin", "launch_in_guix.sh"), "w") as myfile:
         launcher = environment.get_template("launch_in_guix.sh").render(name=name, guix_args = guix_args,)
         myfile.write(launcher)
 
     os.system("chmod +x "+os.path.join(main_dir, name, "bin", "launch_in_guix.sh"))
 
-    # TODO: use one template file for the environment and add the rest with ninja
     with open(os.path.join(main_dir, name, "bin",  "launch_shell.sh"), "w") as myfile:
         launcher = environment.get_template("launch_shell.sh").render(name=name, with_python=with_python)
         myfile.write(launcher)
@@ -129,12 +130,17 @@ def create(ctx, name, channel_file, without_python, requirements_file, pyproject
 @click.pass_context
 def update(ctx, name):
     """
-    Update the channel file (and as a consequence, it will update the packages managed by guix at next shell/run).
+    Update the channel file to the current guix channel file (and as a consequence, it will update the packages managed by guix at next shell/run).
+    
     """
+    print("Updating channel file")
     channels = _make_channel_file(os.path.join(main_dir, name, "channels.scm"))
     with open(os.path.join(main_dir, name, "channels.scm"), "w") as myfile:
         myfile.write(channels)
-    # TODO: add poetry update and a capacity to roll-back
+    if os.path.isfile(os.path.join(main_dir, name, "pyproject.toml")):
+        print("Found python install, updating")
+        _launch_cmd(name, "gep update")
+        
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -146,7 +152,6 @@ def rm(ctx, name):
     if os.path.isdir(os.path.join(main_dir, name)):
         print("Removing ", os.path.join(main_dir, name))
         shutil.rmtree(os.path.join(main_dir, name))
-
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -168,6 +173,7 @@ def add_guix(ctx, name, pkg):
         myfile.write(
                 "(specifications->manifest '(\n\"" + '"\n "'.join(packages) + '"\n))'
             )
+    print(f"Package {name} added to the manifest") 
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -177,8 +183,7 @@ def add_python(ctx, name, pkg):
     """
     Add the python package `pkg` to the environment named `name`.
     """
-    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
-    os.system(f"{env_file} poetry add {pkg} --directory={os.path.join(main_dir, name)}")
+    _launch_cmd(name, f"gep add  {pkg}")
 
 @guix_env.command()
 @click.pass_context
@@ -196,8 +201,7 @@ def info(ctx, name):
     Get informations on environment with name `name`.
     """
     click.echo("Environment located in "+os.path.join(main_dir, name))
-    env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
-    os.system(env_file+" guix describe")
+    _launch_cmd(name," guix describe")
 
     with open(os.path.join(main_dir, name, "manifest.scm"), "r") as myfile:
         packages = myfile.read().split("(")[2].split(")")[0]
@@ -209,7 +213,7 @@ def info(ctx, name):
     click.echo("\n".join(packages))
     click.echo("-"*10)
     click.echo("Installed python packages")
-    os.system(f"{env_file} poetry run pip3 freeze --directory={os.path.join(main_dir, name)}")
+    _launch_cmd(name, "gep run pip3 freeze")
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -221,22 +225,11 @@ def shell(ctx, name, tmux, cwd):
     Open a shell in the environment with name `name`.
     """
     assert os.path.isdir(os.path.join(main_dir, name)), "Environment does not exist"
-    # env_file = os.path.join(main_dir, name, "bin", "use_env.sh")
 
-    if tmux:
-        child = subprocess.run(["tmux","has-session", "-t",  "guix_env_"+name],capture_output=True,text=True)
-        rc = child.returncode
-        if rc != 0:
-            print("env not launched yet, launching now")
-            os.system("tmux new-session -d -s guix_env_"+name+" "+activation_file)
-
-        if cwd:
-            wd = os.getcwd()
-            os.system("tmux send-keys -t guix_env_"+name+" \" cd "+wd+ " && clear\" ENTER")
-            print("done cwd")
-        os.system("tmux attach -t guix_env_"+name)
-    else:
-        os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh") + " " + os.path.join(main_dir, name, "bin", "launch_shell.sh"))
+    print(f"Welcome to your guix-env environment: {name}")
+    print("To install python package, use 'gep add package_name'. gep is ann alias for poetry that install things at the right place.")
+    
+    os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh") + " " + os.path.join(main_dir, name, "bin", "launch_shell.sh"))
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -250,10 +243,15 @@ def run(ctx, name, cmd):
     guix-env run my_env "ls $HOME/"
     """
 
-    os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh")+ " " + os.path.join(main_dir, name, "bin", "run_script.sh") + " "  + cmd)
+    _launch_cmd(name, cmd)
 
+
+def _launch_cmd(name, cmd):
+    os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh")+ " " + os.path.join(main_dir, name, "bin", "run_script.sh") + " "  + cmd)
+    
   
 def _is_in_guix(pkg):
+    print("Checking that the package is indeed a guix package")
     output = subprocess.run(["guix", "search", pkg], capture_output=True).stdout.decode()
     output = output.split("name: ")
     names = [o.split("\n")[0] for o in output]

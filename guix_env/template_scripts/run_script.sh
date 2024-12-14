@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bash
+#!/usr/bin/env -S zsh
 # Must be run through launch_in_guix
 
 
@@ -12,6 +12,7 @@ export TERM=ansi
 export POETRY_CACHE_DIR=${HOME}/.guix_env/poetry_cache
 export POETRY_VIRTUALENVS_IN_PROJECT=true
 . $HOME/.guix_env/{{ name }}/.venv/bin/activate
+. $HOME/.guix_env/{{ name }}/.zshrc
 
 $@
     

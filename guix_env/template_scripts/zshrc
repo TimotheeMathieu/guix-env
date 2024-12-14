@@ -41,7 +41,6 @@ alias ls='ls --color'
 PROMPT="%{$fg[green]%}%n@{{ name }}-guix-env  %T %~
 %{$reset_color%}%# >"
 HISTFILE="$HOME/.guix_env/{{ name }}/.zhistory"
-echo "Welcome to your guix-env environment: {{ name }}"
 
 {% if with_python  %}
 
@@ -66,8 +65,6 @@ gep() # guix-env poetry inside guix-env, used to add packages to the guix-env vi
     command poetry "$@"
     cd -
 }
-
-echo "To install python package, use 'gep add package_name'. gep is ann alias for poetry that install things at the right place."
 
 {% else %}
 
