@@ -17,7 +17,7 @@ environment = Environment(loader=FileSystemLoader(
 guix_python_packages = [
     "python",
     "python-toolchain",
-    "poetry-next", # this comes from perso channel while waiting for guix to have a newer version of poetry
+    "poetry", # this comes from perso channel while waiting for guix to have a newer version of poetry
     "xcb-util", # xcb is for matplotlib to be able to plt.show
     "xcb-util-wm",
     "xcb-util-image",
@@ -152,6 +152,8 @@ def rm(ctx, name):
     if os.path.isdir(os.path.join(main_dir, name)):
         print("Removing ", os.path.join(main_dir, name))
         shutil.rmtree(os.path.join(main_dir, name))
+    else:
+        print("Environment not found, not removing anything")
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
