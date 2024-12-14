@@ -1,6 +1,8 @@
 # -*- mode: shell-script -*-
 
-autoload -U compinit promptinit
+# completions
+fpath+=~/.guix_env/{{ name }}
+autoload -Uz compinit promptinit
 compinit
 promptinit
 
@@ -27,12 +29,24 @@ bindkey "\e[1~" beginning-of-line # Home
 bindkey "\e[4~" end-of-line # End
 bindkey "\e[7~" beginning-of-line # Home
 bindkey "\e[8~" end-of-line # End
+bindkey "\eOF" end-of-line
+bindkey "\eOH" beginning-of-line
 bindkey "^E" end-of-line
 bindkey "^A" beginning-of-line
 
 autoload -U colors && colors
 
 alias ls='ls --color'
+
+PROMPT="%{$fg[green]%}%n@{{ name }}-guix-env  %T %~
+%{$reset_color%}%# >"
+HISTFILE="$HOME/.guix_env/{{ name }}/.zhistory"
+
+{% if with_python  %}
+
+. $HOME/.guix_env/{{ name }}/.venv/bin/activate
+
+
 
 REQFILE={{ reqfile }}
 
@@ -45,5 +59,17 @@ pip()
     fi
 }
 
-PROMPT="%{$fg[green]%}%n@{{ name }}-guix-env  %T %~
-%{$reset_color%}%# >"
+gep() # guix-env poetry inside guix-env, used to add packages to the guix-env virtual env.
+{
+    cd $HOME/.guix_env/{{ name }}
+    command poetry "$@"
+    cd -
+}
+
+{% else %}
+
+{% endif %}
+
+
+
+
