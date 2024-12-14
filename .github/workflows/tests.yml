@@ -28,4 +28,4 @@ jobs:
 
       - name: test
         run: |
-          pytest --cov=guix_env tests
+          pytest -s --cov=guix_env tests
