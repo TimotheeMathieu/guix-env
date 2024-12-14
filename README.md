@@ -21,7 +21,7 @@ The first run may be a bit slow because of guix downloading a bunch of packages 
 Then, you are good to go and do anything you wish in your environment. You are in a python virtual environment that is managed with poetry for reproducibility purpose, to install new python package from inside the environment, use `gep add package_name`, `gep` stands for guix-env-poetry and is just an alias of poetry that install at the right place. To add new guix package, use `guix-env add-guix my_env_name my_package_name` from outside the environment. 
 
 
-Remark that I made a few opinionated design choices:
+Some remarks:
 - I included some guix and python packages that are convenient for basic shell commands and basic graphical display.
 - I use zsh shell in the guix-env environments.
 - Every environment has its own .local and .zshrc. They can be accessed in $HOME/.guix_env/env_name
