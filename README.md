@@ -1,4 +1,4 @@
-# Guix & venv environments for reproducible python development
+# Guix & poetry environments for reproducible python development
 
 This package give a cli tool to construct and enter environments constructed through guix (for the system-level packages) and optionally a poetry environment (for python packages). My main use-case are: having deployable environment that can run on server, archiving projects that I want to reliably run in several years and having clean environment to test stuff without the bloat of my main system.
 
