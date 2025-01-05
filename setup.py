@@ -13,7 +13,7 @@ setup(
     packages=["guix_env"],
     include_package_data=True,
     install_requires=[
-        'Click', "jinja2"
+        'Click', "jinja2", "questionary"
     ],
     entry_points={
         'console_scripts': [

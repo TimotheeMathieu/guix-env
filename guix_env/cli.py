@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import shutil
 from jinja2 import Environment, FileSystemLoader
-
+import questionary
 
 # TODO: add test that the environment exists before doing anything.
 
@@ -37,6 +37,7 @@ default_guix_packages = [
     "curl",
     "git",
     "make",
+    "mesa",
     "zlib",
     "which",
     "tcl",
@@ -120,11 +121,21 @@ def create(ctx, name, channel_file, without_python, requirements_file, pyproject
         myfile.write(launcher)
     os.system("chmod +x "+os.path.join(main_dir, name, "bin",  "launch_shell.sh"))
 
+    # initialize a git repo for rollback capability
+    
+    guix_git_cmd = f"guix time-machine --channels=$HOME/.guix_env/{name}/channels.scm -- shell git  -- git init $HOME/.guix_env/{name}/"
+    subprocess.run(guix_git_cmd, shell=True)
+    with open(os.path.join(main_dir, name, "bin",  "add_commit.sh"), "w") as myfile:
+            launcher = environment.get_template("add_commit.sh").render(name=name, with_python=with_python)
+            myfile.write(launcher)
+    os.system("chmod +x "+os.path.join(main_dir, name, "bin",  "add_commit.sh"))
+    os.system(os.path.join(main_dir, name, "bin",  "add_commit.sh"))
+
     if with_python:
         ### construct a poetry environment optionally with the specified requirements
         _make_python_env(main_dir, name, pyproject_file, poetry_lock_file, requirements_file)
         
-    print(f"Guix-env environment {name} has beenn created, its files can be found in {os.path.join(main_dir, name)}")
+    print(f"Guix-env environment {name} has been created, its files can be found in {os.path.join(main_dir, name)}")
     
 
 @guix_env.command()
@@ -177,7 +188,10 @@ def add_guix(ctx, name, pkg):
         myfile.write(
                 "(specifications->manifest '(\n\"" + '"\n "'.join(packages) + '"\n))'
             )
-    print(f"Package {name} added to the manifest") 
+    print("Commiting changes...")
+    os.system(os.path.join(main_dir, name, "bin",  "add_commit.sh"))
+
+    print(f"Package {pkg} added to the manifest for environment {name}.") 
 
 @guix_env.command()
 @click.argument('name',required = True, type=str)
@@ -188,6 +202,9 @@ def add_python(ctx, name, pkg):
     Add the python package `pkg` to the environment named `name`.
     """
     _launch_cmd(name, f"gep add  {pkg}")
+    print("Commiting changes...")
+    os.system(os.path.join(main_dir, name, "bin",  "add_commit.sh"))
+
 
 @guix_env.command()
 @click.pass_context
@@ -202,7 +219,7 @@ def list(ctx):
 @click.pass_context
 def info(ctx, name):
     """
-    Get informations on environment with name `name`.
+    Get informations on packages in the environment with name `name`.
     """
     click.echo("Environment located in "+os.path.join(main_dir, name))
     _launch_cmd(name," guix describe")
@@ -219,19 +236,37 @@ def info(ctx, name):
     click.echo("Installed python packages")
     _launch_cmd(name, "gep run pip3 freeze")
 
+
+
 @guix_env.command()
 @click.argument('name',required = True, type=str)
-@click.option("--tmux", is_flag=True, required=False, help="Launch in a tmux console, if it does not exists create it.")
-@click.option("--cwd", is_flag=True, required=False, help="Used only in conjunction with tmux, change current directory in the tmux environment.")
 @click.pass_context
-def shell(ctx, name, tmux, cwd):
+def rollback(ctx, name):
+    """
+    Rollback to previous commit `name`.
+    """
+    raise NotImplemented("Not implemented yet. For now, just roll back the git repo manually")
+    
+    # answer = questionary.form(
+    #     which_date = questionary.select("Rollback to which commit",
+    #                                     choices=["item1", "item2", "item3"])
+    # ).ask()
+
+    # print(answers)
+
+    
+
+@guix_env.command()
+@click.argument('name',required = True, type=str)
+@click.pass_context
+def shell(ctx, name):
     """
     Open a shell in the environment with name `name`.
     """
     assert os.path.isdir(os.path.join(main_dir, name)), "Environment does not exist"
 
-    print(f"Welcome to your guix-env environment: {name}")
-    print("To install python package, use 'gep add package_name'. gep is an alias for poetry that install things at the right place.")
+    print(f"Welcome to your guix-env environment: {name}. Launching environment...")
+    # print("To install python package, use 'gep add package_name'. gep is an alias for poetry that install things at the right place.")
     
     os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh") + " " + os.path.join(main_dir, name, "bin", "launch_shell.sh"))
 
@@ -252,7 +287,8 @@ def run(ctx, name, cmd):
 
 def _launch_cmd(name, cmd):
     os.system(os.path.join(main_dir, name, "bin", "launch_in_guix.sh")+ " " + os.path.join(main_dir, name, "bin", "run_script.sh") + " "  + cmd)
-    
+
+
   
 def _is_in_guix(pkg):
     print("Checking that the package is indeed a guix package")
